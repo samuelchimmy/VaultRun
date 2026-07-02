@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>VaultRun</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root { --bg: #0a0a1a; --cyan: #00f5ff; --purple: #b026ff; --green: #00ff88; --text: #e0e0ff; --glass: rgba(255, 255, 255, 0.05); } 
+* { box-sizing: border-box; margin: 0; padding: 0; } 
+body { font-family: 'Trebuchet MS', 'Arial Black', sans-serif; background-color: var(--bg); color: var(--text); display: flex; flex-direction: column; overflow: hidden; position: relative; height: 100vh; user-select: none; -webkit-tap-highlight-color: transparent; } 
+body::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: repeating-linear-gradient(rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 1px, transparent 1px, transparent 4px); pointer-events: none; z-index: 10; } 
+.header { height: 80px; padding: 0 40px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(0, 245, 255, 0.2); background: rgba(10, 10, 26, 0.8); flex-shrink: 0; } 
+.logo { font-size: 32px; font-weight: 900; letter-spacing: 4px; color: var(--cyan); text-shadow: 0 0 15px var(--cyan); text-transform: uppercase; font-family: 'Orbitron', sans-serif;} 
+.wallet-info { display: flex; align-items: center; gap: 12px; } 
+.addr { font-family: monospace; background: var(--glass); padding: 6px 12px; border-radius: 4px; border: 1px solid rgba(0, 245, 255, 0.3); font-size: 14px; } 
+.status-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; box-shadow: 0 0 8px var(--green); } 
+.balance-bar { height: 50px; background: rgba(0, 0, 0, 0.3); border-bottom: 1px solid rgba(255, 255, 255, 0.05); display: flex; align-items: center; justify-content: center; gap: 40px; font-size: 13px; letter-spacing: 1px; flex-shrink: 0; } 
+.balance-item span { color: var(--cyan); font-weight: bold; } 
+
+.view { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; flex-direction: column; }
+.view.active { display: flex; }
+
+.main-content { flex: 1; display: grid; grid-template-columns: 1fr 380px; gap: 30px; padding: 30px 40px; overflow-y: auto; padding-bottom: 80px; }
+@media (max-width: 800px) { .main-content { grid-template-columns: 1fr; padding: 20px; } .header { padding: 0 20px; } .logo { font-size: 24px; } .balance-bar { gap: 15px; font-size: 11px; } }
+
+.modes-column { display: flex; flex-direction: column; gap: 20px; } 
+.card { background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 24px; position: relative; transition: transform 0.2s; } 
+.card-daily { border-left: 4px solid var(--purple); } 
+.card-practice { border-left: 4px solid var(--cyan); } 
+.card-ghost { border-left: 4px solid var(--green); } 
+.card h3 { font-size: 20px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; color: #fff;} 
+.card p { font-size: 14px; opacity: 0.7; margin-bottom: 20px; line-height: 1.4; color: #fff;} 
+.pool-tag { position: absolute; top: 24px; right: 24px; font-size: 12px; color: var(--purple); font-weight: bold; } 
+
+.btn { padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; background: transparent; border: 1px solid var(--cyan); color: var(--cyan); box-shadow: inset 0 0 10px rgba(0, 245, 255, 0.1), 0 0 10px rgba(0, 245, 255, 0.1); transition: all 0.2s; outline: none; font-family: 'Trebuchet MS', sans-serif;} 
+.btn:hover { background: var(--cyan); color: var(--bg); box-shadow: 0 0 15px var(--cyan); }
+.btn-purple { border-color: var(--purple); color: var(--purple); box-shadow: inset 0 0 10px rgba(176, 38, 255, 0.1), 0 0 10px rgba(176, 38, 255, 0.1); } 
+.btn-purple:hover { background: var(--purple); color: #fff; box-shadow: 0 0 15px var(--purple); }
+.btn-green { border-color: var(--green); color: var(--green); box-shadow: inset 0 0 10px rgba(0, 255, 136, 0.1), 0 0 10px rgba(0, 255, 136, 0.1); } 
+.btn-green:hover { background: var(--green); color: var(--bg); box-shadow: 0 0 15px var(--green); }
+
+.leaderboard-panel { background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; display: flex; flex-direction: column; padding: 20px; } 
+.lb-header { font-size: 14px; text-transform: uppercase; letter-spacing: 2px; color: var(--purple); margin-bottom: 20px; font-weight: 900; } 
+.lb-row { display: grid; grid-template-columns: 30px 1fr 60px; padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-size: 13px; } 
+.lb-row:last-child { border: none; } 
+.lb-rank { color: var(--cyan); font-weight: bold; } 
+.lb-user { color: #fff; }
+.lb-score { text-align: right; color: var(--green); font-family: monospace; } 
+
+.footer { position: fixed; bottom: 0; left: 0; width: 100%; height: 40px; background: #050510; border-top: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; gap: 30px; font-size: 11px; color: #555577; z-index: 50;} 
+.footer a { color: #555577; text-decoration: none; }
+.footer span:hover, .footer a:hover { color: var(--cyan); cursor: pointer; } 
+
+.token-selector { background: #000; border: 1px solid #333; border-radius: 4px; padding: 4px; display: flex; gap: 4px; width: fit-content; } 
+.token-opt { padding: 4px 10px; font-size: 10px; cursor: pointer; border-radius: 2px; opacity: 0.5; color: #fff; background: transparent; border: none; font-family: 'Trebuchet MS', sans-serif;} 
+.token-opt.active { opacity: 1; background: var(--cyan); color: #000; font-weight: bold; }
+
+/* Text Pages */
+.text-page { padding: 20px; max-width: 800px; margin: 0 auto; padding-bottom: 80px; flex: 1; overflow-y: auto; position: relative; z-index: 20;}
+.text-page h2 { color: var(--cyan); font-size: 24px; margin-bottom: 20px;}
+.text-page h3 { margin-top: 20px; margin-bottom: 10px; color: #fff; font-size: 18px;}
+.text-page p { margin-bottom: 15px; font-size: 14px; color: #aaa;}
+.text-page ul { margin-left: 20px; margin-bottom: 15px; color: #aaa; font-size: 14px;}
+.text-page li { margin-bottom: 5px; }
+.back-btn { display: inline-block; margin-bottom: 20px; color: var(--cyan); text-decoration: none; font-size: 1rem; padding: 10px 0; cursor: pointer; font-weight: bold;}
+
+/* Hero */
+#hero { justify-content: center; align-items: center; text-align: center; padding: 20px; background: radial-gradient(circle at center, #1a1a3a 0%, #0a0a1a 100%); position: relative; z-index: 20;}
+.particles { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; }
+h1 { font-size: 3rem; color: var(--cyan); text-shadow: 0 0 20px var(--cyan); text-align: center; margin-bottom: 10px; font-family: 'Orbitron', sans-serif; letter-spacing: 4px; text-transform: uppercase;}
+
+/* Modals / Toasts */
+#toast { position: fixed; top: -50px; left: 50%; transform: translateX(-50%); background: var(--purple); color: #fff; padding: 10px 20px; border-radius: 20px; z-index: 1000; transition: top 0.3s; font-size: 0.9rem; white-space: nowrap; font-family: 'Trebuchet MS', sans-serif;}
+#modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10,10,26,0.9); z-index: 900; justify-content: center; align-items: center; flex-direction: column; padding: 20px; text-align: center; }
+.spinner { width: 40px; height: 40px; border: 4px solid rgba(0, 245, 255, 0.2); border-top: 4px solid var(--cyan); border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* Game Canvas */
+#gameCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; touch-action: none; }
+#hud { position: absolute; top: 20px; left: 20px; z-index: 20; pointer-events: none; font-family: 'Orbitron', sans-serif;}
+#hudScore { font-size: 2rem; color: var(--green); text-shadow: 0 0 10px var(--green); }
+#hudPB { font-size: 0.9rem; color: #aaa; margin-top: 5px; }
+#hudMode { position: absolute; top: 20px; right: 20px; z-index: 20; color: var(--cyan); font-size: 0.9rem; text-align: right; pointer-events: none; font-family: 'Orbitron', sans-serif;}
+#tapHint { position: absolute; bottom: 20%; left: 0; width: 100%; text-align: center; color: rgba(255,255,255,0.5); font-size: 1.2rem; z-index: 20; animation: pulse 1.5s infinite; pointer-events: none; font-family: 'Orbitron', sans-serif; letter-spacing: 2px;}
+@keyframes pulse { 0% { opacity: 0.2; } 50% { opacity: 0.8; } 100% { opacity: 0.2; } }
+
+#gameOverOverlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10,10,26,0.8); z-index: 30; flex-direction: column; justify-content: center; align-items: center; font-family: 'Orbitron', sans-serif;}
+#goTitle { font-size: 2.5rem; color: var(--purple); text-shadow: 0 0 20px var(--purple); margin-bottom: 10px; text-transform: uppercase;}
+#goScore { font-size: 4rem; color: #fff; margin-bottom: 30px; }
+</style>
+</head>
+<body>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Modal -->
+<div id="modal">
+    <div id="modalContent"></div>
+    <div id="modalSpinner" class="spinner" style="display:none;"></div>
+</div>
+
+<!-- Hero View -->
+<div id="hero" class="view active">
+    <div class="particles" id="particles"></div>
+    <h1>VaultRun</h1>
+    <p style="color: #fff; font-size: 1.2rem;">Jump. Survive. Earn.</p>
+    <p>A daily rhythm obstacle run where skill pays. Beat the course, top the board, claim real stablecoins.</p>
+    <button class="btn" onclick="connectWallet()">Connect & Play</button>
+    <p style="font-size: 0.8rem; margin-top: 20px;">Powered by Celo · USDm · USDT · USDC</p>
+</div>
+
+<!-- Lobby View -->
+<div id="lobby" class="view">
+    <header class="header">
+        <div class="logo">VAULTRUN</div>
+        <div class="wallet-info">
+            <div class="status-dot"></div>
+            <div class="addr" id="walletAddress">0x...</div>
+        </div>
+    </header>
+    <div class="balance-bar">
+        <div class="balance-item" id="bal-USDm">USDm: <span>$0.00</span></div>
+        <div class="balance-item" id="bal-USDT">USDT: <span>$0.00</span></div>
+        <div class="balance-item" id="bal-USDC">USDC: <span>$0.00</span></div>
+    </div>
+    <main class="main-content">
+        <div class="modes-column">
+            <div class="card card-daily">
+                <div class="pool-tag" id="dailyPoolSize">POOL: Loading...</div>
+                <h3>Daily Challenge</h3>
+                <p>Master today's unique seeded course. Top 3 scorers split the daily pool at 23:59 UTC.</p>
+                <div style="display:flex; justify-content: space-between; align-items: flex-end;">
+                    <button class="btn btn-purple" onclick="enterPaidMode('daily')">Enter &bull; 0.05</button>
+                    <div class="token-selector">
+                        <button class="token-opt active" onclick="setToken('USDm')" id="btn-USDm">USDm</button>
+                        <button class="token-opt" onclick="setToken('USDT')" id="btn-USDT">USDT</button>
+                        <button class="token-opt" onclick="setToken('USDC')" id="btn-USDC">USDC</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-practice">
+                <h3>Practice Mode</h3>
+                <p>Warm up on today's track with no entry fee. Race against a ghost run of the current top score.</p>
+                <button class="btn" onclick="startGame('practice')">Play Free</button>
+            </div>
+
+            <div class="card card-ghost">
+                <h3>Ghost Race</h3>
+                <p>Head-to-head against today's leader. Win 1.8x your entry if you beat their score.</p>
+                <button class="btn btn-green" onclick="enterPaidMode('ghost')">Race Ghost &bull; 0.05</button>
+            </div>
+        </div>
+
+        <aside class="leaderboard-panel">
+            <div class="lb-header">TODAY'S TOP RUNNERS</div>
+            <div id="leaderboardBody">
+                <div class="lb-row"><div class="lb-rank">--</div><div class="lb-user">Loading...</div><div class="lb-score">--</div></div>
+            </div>
+            <div style="margin-top:auto; padding-top: 20px; font-size: 11px; opacity: 0.5; text-align: center;"> NEXT RESET IN 14h 22m </div>
+        </aside>
+    </main>
+</div>
+
+<!-- Game View -->
+<div id="game" class="view">
+    <canvas id="gameCanvas"></canvas>
+    <div id="hud">
+        <div id="hudScore">0%</div>
+        <div id="hudPB">PB: 0%</div>
+    </div>
+    <div id="hudMode">DAILY</div>
+    <div id="tapHint">TAP TO JUMP</div>
+    <div id="gameOverOverlay">
+        <div id="goTitle">COURSE FAILED</div>
+        <div id="goScore">47%</div>
+        <button class="btn btn-cyan" onclick="GameEngine.start(appState.currentMode)" style="margin-bottom: 10px;">Retry</button>
+        <button class="btn" onclick="quitGame()" style="border-color:#666; color:#aaa;">Quit</button>
+    </div>
+</div>
+
+<!-- Support View -->
+<div id="support" class="view scrollable text-page">
+    <div class="back-btn" onclick="showView(appState.connected ? 'lobby' : 'hero')">← Back</div>
+    <h2>Support</h2>
+    <h3>How are winnings paid out?</h3>
+    <p>Daily resolution happens at 23:59 UTC. The smart contract splits 80% of the daily pool among the top 3 scorers proportionally based on their score.</p>
+    <h3>What tokens can I use?</h3>
+    <p>We support USDm, USDT, and USDC on Celo Mainnet.</p>
+    <h3>Can I enter more than once per day?</h3>
+    <p>No, one entry per wallet per day for the Daily Challenge.</p>
+    <h3>Where can I see the smart contract?</h3>
+    <p>You can view the transparent logic on <a href="#" style="color:#00f5ff;">Celoscan</a>.</p>
+    <h3>I had a transaction issue — what do I do?</h3>
+    <p>Email us at: support@vaultrun.xyz</p>
+</div>
+
+<!-- Terms View -->
+<div id="terms" class="view scrollable text-page">
+    <div class="back-btn" onclick="showView(appState.connected ? 'lobby' : 'hero')">← Back</div>
+    <h2>Terms of Service</h2>
+    <p>Welcome to VaultRun. By playing, you agree to these terms.</p>
+    <h3>Nature of the Game</h3>
+    <p>VaultRun is a game of skill, not gambling. Success depends entirely on player timing and reflexes in a deterministic environment.</p>
+    <h3>Fees and Refunds</h3>
+    <p>All entry fees are non-refundable. Transactions are final on the Celo blockchain.</p>
+    <h3>Smart Contract Governance</h3>
+    <p>The smart contract governs all payouts automatically. The developers have no discretion over the distribution of the 80% prize pool.</p>
+    <h3>Eligibility</h3>
+    <p>Users must be 18+ and are responsible for ensuring participation is legal in their jurisdiction.</p>
+    <h3>Dispute Resolution</h3>
+    <p>The onchain record of scores and payments is final. No warranties of uptime are provided.</p>
+</div>
+
+<!-- Privacy View -->
+<div id="privacy" class="view scrollable text-page">
+    <div class="back-btn" onclick="showView(appState.connected ? 'lobby' : 'hero')">← Back</div>
+    <h2>Privacy Policy</h2>
+    <p>We respect your privacy. Here is how we handle data:</p>
+    <ul>
+        <li><strong>Blockchain Data:</strong> We collect your wallet address and game scores, which are stored publicly on the Celo blockchain.</li>
+        <li><strong>No Personal Data:</strong> We do not collect or store your name, email, or phone number.</li>
+        <li><strong>Local Storage:</strong> Personal best scores and settings are stored locally on your device.</li>
+        <li><strong>No Trackers:</strong> We do not use third-party analytics trackers.</li>
+    </ul>
+    <p>Contact: privacy@vaultrun.xyz</p>
+</div>
+
+<!-- Footer -->
+<footer id="footer" class="footer">
+    <div>VaultRun &copy; 2026</div>
+    <a href="javascript:showView('support')">Support</a>
+    <a href="javascript:showView('terms')">Terms</a>
+    <a href="javascript:showView('privacy')">Privacy</a>
+</footer>
+
+<script type="module">
+import { createPublicClient, createWalletClient, custom, http, parseUnits, formatUnits } from 'https://esm.sh/viem@2.x';
+import { celo } from 'https://esm.sh/viem@2.x/chains';
+
+// --- APP STATE & CONSTANTS ---
+const TOKENS = {
+    USDm: '0x4F604735c1cF31399C6E711D5962b2B3E0225AD3',
+    USDT: '0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e',
+    USDC: '0xcebA9300f2b948710d2653dD7B07f33A8B32118C'
+};
+
+window.appState = {
+    walletAddress: null,
+    connected: false,
+    selectedToken: localStorage.getItem('vaultrun_token') || 'USDm',
+    contractAddress: '0x0000000000000000000000000000000000000000', // DEPLOY_AND_REPLACE
+    balances: { USDm: 0, USDT: 0, USDC: 0 },
+    currentMode: null,
+    gameActive: false,
+    currentScore: 0,
+    personalBest: parseInt(localStorage.getItem('vaultrun_pb') || '0'),
+    currentDay: Math.floor(Date.now() / 86400000),
+    tutorialSeen: localStorage.getItem('vaultrun_tut') === '1',
+    publicClient: null,
+    walletClient: null
+};
+
+// --- ABI ---
+const erc20ABI = [
+    { type: "function", name: "balanceOf", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }], stateMutability: "view" },
+    { type: "function", name: "approve", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }], stateMutability: "nonpayable" }
+];
+
+const contractABI = [
+    { type: "function", name: "enterDailyChallenge", inputs: [{ name: "token", type: "address" }], outputs: [], stateMutability: "nonpayable" },
+    { type: "function", name: "submitScore", inputs: [{ name: "score", type: "uint256" }], outputs: [], stateMutability: "nonpayable" },
+    { type: "function", name: "enterGhostRace", inputs: [{ name: "token", type: "address" }], outputs: [], stateMutability: "nonpayable" },
+    { type: "function", name: "getDayPool", inputs: [{ name: "day", type: "uint256" }], outputs: [{ type: "uint256" }], stateMutability: "view" },
+    { type: "function", name: "currentDay", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" }
+];
+
+// --- UI HELPERS ---
+window.showToast = function(msg) {
+    const toast = document.getElementById('toast');
+    toast.innerText = msg;
+    toast.style.top = '20px';
+    setTimeout(() => { toast.style.top = '-50px'; }, 3000);
+}
+
+window.showModal = function(html, showSpinner = false) {
+    const m = document.getElementById('modal');
+    document.getElementById('modalContent').innerHTML = html;
+    document.getElementById('modalSpinner').style.display = showSpinner ? 'block' : 'none';
+    m.style.display = 'flex';
+}
+
+window.hideModal = function() {
+    document.getElementById('modal').style.display = 'none';
+}
+
+window.showView = function(viewId) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(viewId).classList.add('active');
+    document.getElementById('footer').style.display = (viewId === 'game') ? 'none' : 'block';
+    
+    if (viewId === 'lobby' && appState.connected) {
+        refreshLobbyData();
+    }
+}
+
+window.setToken = function(symbol) {
+    appState.selectedToken = symbol;
+    localStorage.setItem('vaultrun_token', symbol);
+    document.querySelectorAll('.token-opt').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-' + symbol).classList.add('active');
+}
+
+// --- WALLET & BLOCKCHAIN ---
+window.connectWallet = async function() {
+    if (!window.ethereum) {
+        showToast("Open this app inside MiniPay to connect your wallet.");
+        return;
+    }
+    
+    try {
+        appState.publicClient = createPublicClient({ chain: celo, transport: http('https://forno.celo.org') });
+        appState.walletClient = createWalletClient({ chain: celo, transport: custom(window.ethereum) });
+        
+        const [address] = await appState.walletClient.requestAddresses();
+        
+        try {
+            await appState.walletClient.switchChain({ id: celo.id });
+        } catch (switchError) {
+            console.warn("Could not switch chain:", switchError);
+        }
+
+        appState.walletAddress = address;
+        appState.connected = true;
+        
+        const trunc = address.substring(0,6) + '...' + address.substring(address.length-4);
+        document.getElementById('walletAddress').innerText = trunc;
+        
+        // Initialize token UI
+        setToken(appState.selectedToken);
+        await fetchBalances();
+        showView('lobby');
+    } catch (e) {
+        showToast("Connection failed.");
+        console.error(e);
+    }
+}
+
+async function fetchBalances() {
+    if (!appState.connected) return;
+    try {
+        for (const [symbol, addr] of Object.entries(TOKENS)) {
+            const bal = await appState.publicClient.readContract({
+                address: addr, abi: erc20ABI, functionName: 'balanceOf', args: [appState.walletAddress]
+            });
+            appState.balances[symbol] = formatUnits(bal, 6); // Assuming 6 decimals for all stablecoins
+            document.getElementById(`bal-${symbol}`).innerHTML = `${symbol}: <span>$${parseFloat(appState.balances[symbol]).toFixed(2)}</span>`;
+        }
+    } catch (e) {
+        console.error("Failed to fetch balances", e);
+    }
+}
+
+async function refreshLobbyData() {
+    try {
+        // Fetch pool size
+        const poolRaw = await appState.publicClient.readContract({
+            address: appState.contractAddress, abi: contractABI, functionName: 'getDayPool', args: [appState.currentDay]
+        });
+        document.getElementById('dailyPoolSize').innerText = `POOL: ${parseFloat(formatUnits(poolRaw, 6)).toFixed(2)} USD`;
+        
+        // Mock Leaderboard (Replace with backend query if using an indexer)
+        const lb = document.getElementById('leaderboardBody');
+        lb.innerHTML = `
+            <div class="lb-row"><div class="lb-rank">01</div><div class="lb-user">0xAbC...123</div><div class="lb-score">84%</div></div>
+            <div class="lb-row"><div class="lb-rank">02</div><div class="lb-user">0xDef...456</div><div class="lb-score">72%</div></div>
+            <div class="lb-row"><div class="lb-rank">03</div><div class="lb-user">0xGhi...789</div><div class="lb-score">65%</div></div>
+            <div style="text-align:center; color:#666; font-size:0.8rem; margin-top: 10px;">(Mock Data for Demo)</div>
+        `;
+    } catch (e) {
+        console.error(e);
+        document.getElementById('dailyPoolSize').innerText = `POOL: 0.00 USD`;
+    }
+}
+
+window.enterPaidMode = async function(mode) {
+    if (!appState.connected) return;
+    const tokenAddr = TOKENS[appState.selectedToken];
+    const feeRaw = parseUnits("0.05", 6);
+    
+    showModal(`<h2 style="color:#00f5ff;">Approving Entry</h2>
+        <p>Entering ${mode} mode with 0.05 ${appState.selectedToken}.<br>Please approve the transaction.</p>`, true);
+
+    try {
+        // 1. Approve
+        const { request: approveReq } = await appState.publicClient.simulateContract({
+            address: tokenAddr, abi: erc20ABI, functionName: 'approve', args: [appState.contractAddress, feeRaw], account: appState.walletAddress
+        });
+        const approveHash = await appState.walletClient.writeContract(approveReq);
+        await appState.publicClient.waitForTransactionReceipt({ hash: approveHash });
+        
+        // 2. Enter Game
+        document.getElementById('modalContent').innerHTML = `<h2 style="color:#00f5ff;">Entering Game</h2><p>Confirming entry onchain...</p>`;
+        const funcName = mode === 'daily' ? 'enterDailyChallenge' : 'enterGhostRace';
+        
+        const { request: enterReq } = await appState.publicClient.simulateContract({
+            address: appState.contractAddress, abi: contractABI, functionName: funcName, args: [tokenAddr], account: appState.walletAddress
+        });
+        const enterHash = await appState.walletClient.writeContract(enterReq);
+        await appState.publicClient.waitForTransactionReceipt({ hash: enterHash });
+        
+        hideModal();
+        startGame(mode);
+    } catch (e) {
+        hideModal();
+        showToast("Transaction failed or rejected.");
+        console.error(e);
+    }
+}
+
+window.submitScoreOnChain = async function(scoreBP) {
+    if (!appState.connected) return;
+    showToast("Submitting score onchain...");
+    try {
+        const { request } = await appState.publicClient.simulateContract({
+            address: appState.contractAddress, abi: contractABI, functionName: 'submitScore', args: [BigInt(scoreBP)], account: appState.walletAddress
+        });
+        await appState.walletClient.writeContract(request);
+        showToast("Score saved securely!");
+    } catch (e) {
+        console.error("Score submit error", e);
+        showToast("Failed to save score onchain.");
+    }
+}
+
+// --- GAME LOGIC ---
+window.startGame = function(mode) {
+    showView('game');
+    document.getElementById('hudMode').innerText = mode.toUpperCase();
+    document.getElementById('hudPB').innerText = `PB: ${appState.personalBest}%`;
+    document.getElementById('gameOverOverlay').style.display = 'none';
+    
+    const th = document.getElementById('tapHint');
+    if (!appState.tutorialSeen) {
+        th.style.display = 'block';
+    } else {
+        th.style.display = 'none';
+    }
+    
+    // Countdown
+    let count = 3;
+    showModal(`<h1 id="countText" style="font-size:6rem;">${count}</h1>`);
+    const ival = setInterval(() => {
+        count--;
+        if (count > 0) {
+            document.getElementById('countText').innerText = count;
+        } else {
+            clearInterval(ival);
+            hideModal();
+            GameEngine.start(mode);
+        }
+    }, 1000);
+}
+
+window.quitGame = function() {
+    AudioEngine.stopMusic();
+    if(GameEngine.loopId) cancelAnimationFrame(GameEngine.loopId);
+    showView('lobby');
+}
+
+// --- AUDIO ENGINE ---
+const AudioEngine = {
+    ctx: null, schedulerTimer: null, bpm: 140, nextNoteTime: 0, current16thNote: 0, isPlaying: false,
+    init() {
+        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+    },
+    scheduleNote(beatNumber, time) {
+        if (beatNumber === 0 || beatNumber === 8) {
+            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.frequency.setValueAtTime(150, time); osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+            gain.gain.setValueAtTime(0.6, time); gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+            osc.start(time); osc.stop(time + 0.5);
+        }
+        if (beatNumber % 2 !== 0) {
+            const bufSize = this.ctx.sampleRate * 0.1; const buf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+            const data = buf.getChannelData(0); for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = this.ctx.createBufferSource(); noise.buffer = buf;
+            const filter = this.ctx.createBiquadFilter(); filter.type = 'highpass'; filter.frequency.value = 5000;
+            const gain = this.ctx.createGain(); gain.gain.setValueAtTime(0.15, time); gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+            noise.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+            noise.start(time);
+        }
+        const bassNotes = [32.7, 32.7, 49.0, 32.7];
+        if (beatNumber % 4 === 0 || beatNumber % 4 === 2) {
+            const osc = this.ctx.createOscillator(); const filter = this.ctx.createBiquadFilter(); const gain = this.ctx.createGain();
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(bassNotes[Math.floor(beatNumber / 4) % bassNotes.length], time);
+            filter.type = 'lowpass'; filter.frequency.setValueAtTime(400, time); filter.frequency.exponentialRampToValueAtTime(100, time + 0.2);
+            gain.gain.setValueAtTime(0.2, time); gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+            osc.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+            osc.start(time); osc.stop(time + 0.2);
+        }
+    },
+    nextNote() { this.nextNoteTime += 0.25 * (60.0 / this.bpm); this.current16thNote = (this.current16thNote + 1) % 16; },
+    scheduler() {
+        while (this.nextNoteTime < this.ctx.currentTime + 0.1) { this.scheduleNote(this.current16thNote, this.nextNoteTime); this.nextNote(); }
+        if (this.isPlaying) this.schedulerTimer = requestAnimationFrame(() => this.scheduler());
+    },
+    startMusic() {
+        this.init(); if (this.isPlaying) return;
+        this.isPlaying = true; this.current16thNote = 0; this.nextNoteTime = this.ctx.currentTime + 0.05;
+        this.scheduler();
+    },
+    stopMusic() { this.isPlaying = false; cancelAnimationFrame(this.schedulerTimer); },
+    playJump() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.frequency.setValueAtTime(200, this.ctx.currentTime); osc.frequency.linearRampToValueAtTime(600, this.ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime); gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+        osc.start(this.ctx.currentTime); osc.stop(this.ctx.currentTime + 0.08);
+    },
+    playDeath() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.type = 'square'; osc.frequency.setValueAtTime(600, this.ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.4);
+        gain.gain.setValueAtTime(0.4, this.ctx.currentTime); gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+        osc.start(this.ctx.currentTime); osc.stop(this.ctx.currentTime + 0.4);
+        
+        const bufSize = this.ctx.sampleRate * 0.4; const buf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+        const data = buf.getChannelData(0); for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = this.ctx.createBufferSource(); noise.buffer = buf;
+        const filter = this.ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 200;
+        const ngain = this.ctx.createGain(); ngain.gain.setValueAtTime(0.8, this.ctx.currentTime); ngain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+        noise.connect(filter); filter.connect(ngain); ngain.connect(this.ctx.destination);
+        noise.start(this.ctx.currentTime);
+    },
+    playMilestone() {
+        if (!this.ctx) return;
+        [523.25, 659.25, 783.99].forEach((freq, i) => {
+            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.frequency.value = freq; const st = this.ctx.currentTime + i * 0.1;
+            gain.gain.setValueAtTime(0, st); gain.gain.linearRampToValueAtTime(0.3, st + 0.05); gain.gain.linearRampToValueAtTime(0.01, st + 0.2);
+            osc.start(st); osc.stop(st + 0.2);
+        });
+    },
+    playVictory() {
+        if (!this.ctx) return;
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.frequency.value = freq; osc.type = 'triangle'; const st = this.ctx.currentTime + i * 0.15;
+            gain.gain.setValueAtTime(0, st); gain.gain.linearRampToValueAtTime(0.4, st + 0.05); gain.gain.linearRampToValueAtTime(0.01, st + 0.4);
+            osc.start(st); osc.stop(st + 0.4);
+        });
+    },
+    setTempo(bpm) { this.bpm = bpm; }
+};
+
+// --- GAME ENGINE ---
+function mulberry32(a) {
+    return function() {
+      var t = a += 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    }
+}
+
+const GameEngine = {
+    canvas: null, ctx: null, state: 'menu',
+    player: { x: 0, y: 0, size: 30, vy: 0, gravity: 0.6, jumpPower: -11, trail: [] },
+    obstacles: [], scrollSpeed: 3, score: 0, maxDistance: 15000, distanceTraveled: 0,
+    groundY: 0, startTime: 0, lastTime: 0, loopId: null, ghostData: [], ghostMode: false,
+    
+    init() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.resize(); window.addEventListener('resize', () => this.resize());
+        
+        const jump = (e) => {
+            if (e.type === 'touchstart') e.preventDefault();
+            if (this.state === 'playing') {
+                AudioEngine.init();
+                this.player.vy = this.player.jumpPower;
+                AudioEngine.playJump();
+                if (!appState.tutorialSeen) {
+                    appState.tutorialSeen = true;
+                    localStorage.setItem('vaultrun_tut', '1');
+                    document.getElementById('tapHint').style.display = 'none';
+                }
+            } else if (this.state === 'dead' || this.state === 'victory') {
+                // Ignore fast double taps
+                if (performance.now() - this.lastTime > 500) this.start(appState.currentMode);
+            }
+        };
+        this.canvas.addEventListener('touchstart', jump, {passive: false});
+        this.canvas.addEventListener('mousedown', jump);
+    },
+    resize() {
+        this.canvas.width = window.innerWidth; this.canvas.height = window.innerHeight;
+        this.groundY = this.canvas.height * 0.75; this.player.x = this.canvas.width * 0.15;
+        if (this.state !== 'playing') this.player.y = this.groundY - this.player.size;
+    },
+    generateObstacles(seed) {
+        const prng = mulberry32(seed);
+        this.obstacles = [];
+        let currentX = this.canvas.width;
+        while(currentX < this.maxDistance) {
+            currentX += 300 + prng() * 300;
+            const type = prng();
+            if (type < 0.4) {
+                this.obstacles.push({ x: currentX, y: this.groundY, w: 40, h: 40, type: 'spike_up' });
+            } else if (type < 0.7) {
+                this.obstacles.push({ x: currentX, y: this.groundY, w: 40, h: 40, type: 'spike_up' });
+                this.obstacles.push({ x: currentX + 40, y: this.groundY, w: 40, h: 40, type: 'spike_up' });
+                currentX += 40;
+            } else if (type < 0.85) {
+                const py = this.groundY - 80 - prng() * 40;
+                this.obstacles.push({ x: currentX, y: py, w: 100, h: 20, type: 'platform' });
+            } else {
+                const py = this.groundY - 120 - prng() * 20;
+                this.obstacles.push({ x: currentX, y: py, w: 40, h: 40, type: 'spike_down' });
+            }
+        }
+    },
+    start(mode) {
+        document.getElementById('gameOverOverlay').style.display = 'none';
+        this.state = 'playing'; this.player.y = this.groundY - this.player.size; this.player.vy = 0; this.player.trail = [];
+        this.scrollSpeed = 3; this.distanceTraveled = 0; this.score = 0;
+        this.ghostMode = (mode === 'ghost' || mode === 'practice');
+        
+        this.generateObstacles(appState.currentDay);
+        
+        this.ghostData = [];
+        if (this.ghostMode) {
+            for (let d=0; d<this.maxDistance; d+=10) this.ghostData.push({d: d, y: this.groundY - 30 - Math.abs(Math.sin(d/100)*100)});
+        }
+        
+        this.startTime = performance.now(); this.lastTime = this.startTime;
+        document.getElementById('hudScore').innerText = `0%`;
+        
+        AudioEngine.startMusic(); AudioEngine.setTempo(140);
+        if (this.loopId) cancelAnimationFrame(this.loopId);
+        this.loopId = requestAnimationFrame((t) => this.loop(t));
+    },
+    die() {
+        this.state = 'dead'; AudioEngine.stopMusic(); AudioEngine.playDeath();
+        if (this.score > appState.personalBest) {
+            appState.personalBest = this.score; localStorage.setItem('vaultrun_pb', this.score.toString());
+            document.getElementById('hudPB').innerText = `PB: ${this.score}%`;
+        }
+        if (appState.currentMode === 'daily') window.submitScoreOnChain(Math.floor(this.score * 100));
+        
+        document.getElementById('gameOverOverlay').style.display = 'flex';
+        document.getElementById('goTitle').innerText = 'COURSE FAILED';
+        document.getElementById('goTitle').style.color = '#b026ff';
+        document.getElementById('goScore').innerText = `${this.score}%`;
+    },
+    win() {
+        this.state = 'victory'; this.score = 100; AudioEngine.stopMusic(); AudioEngine.playVictory();
+        if (this.score > appState.personalBest) {
+            appState.personalBest = this.score; localStorage.setItem('vaultrun_pb', this.score.toString());
+            document.getElementById('hudPB').innerText = `PB: 100%`;
+        }
+        if (appState.currentMode === 'daily') window.submitScoreOnChain(10000);
+        
+        document.getElementById('gameOverOverlay').style.display = 'flex';
+        document.getElementById('goTitle').innerText = 'COURSE CLEAR';
+        document.getElementById('goTitle').style.color = '#00ff88';
+        document.getElementById('goScore').innerText = `100%`;
+    },
+    update(dt) {
+        if (this.state !== 'playing') return;
+        const elapsedSec = (performance.now() - this.startTime) / 1000;
+        this.scrollSpeed = Math.min(9, 3 + Math.floor(elapsedSec / 10) * 0.5);
+        AudioEngine.setTempo(140 + Math.floor(elapsedSec / 10) * 5);
+        this.distanceTraveled += this.scrollSpeed;
+        
+        this.player.vy += this.player.gravity; this.player.y += this.player.vy;
+        this.player.trail.push({x: this.player.x, y: this.player.y});
+        if (this.player.trail.length > 8) this.player.trail.shift();
+        
+        const pRect = {x: this.player.x, y: this.player.y, w: this.player.size, h: this.player.size};
+        if (this.player.y + this.player.size >= this.groundY) {
+            this.player.y = this.groundY - this.player.size; this.player.vy = 0;
+        }
+        
+        for (let obs of this.obstacles) {
+            const sx = obs.x - this.distanceTraveled;
+            if (sx > this.canvas.width || sx + obs.w < 0) continue;
+            const oRect = { x: sx, y: obs.type === 'spike_up' ? obs.y - obs.h : obs.y, w: obs.w, h: obs.h };
+            
+            if (obs.type === 'platform') {
+                if (this.player.vy >= 0 && pRect.y + pRect.h <= oRect.y + 12 && pRect.y + pRect.h + this.player.vy >= oRect.y && pRect.x + pRect.w > oRect.x && pRect.x < oRect.x + oRect.w) {
+                    this.player.y = oRect.y - pRect.h; this.player.vy = 0;
+                }
+            }
+            
+            if (pRect.x < oRect.x + oRect.w && pRect.x + pRect.w > oRect.x && pRect.y < oRect.y + oRect.h && pRect.y + pRect.h > oRect.y) {
+                if (obs.type === 'platform') {
+                    if (pRect.y + pRect.h > oRect.y + 12) this.die();
+                } else {
+                    const shrink = 6;
+                    if (pRect.x + shrink < oRect.x + oRect.w - shrink && pRect.x + pRect.w - shrink > oRect.x + shrink && pRect.y + shrink < oRect.y + oRect.h - shrink && pRect.y + pRect.h - shrink > oRect.y + shrink) {
+                        this.die(); return;
+                    }
+                }
+            }
+        }
+        
+        const newScore = Math.floor((this.distanceTraveled / this.maxDistance) * 100);
+        if (newScore > this.score) {
+            if (newScore % 25 === 0) AudioEngine.playMilestone();
+            this.score = Math.min(100, newScore);
+            document.getElementById('hudScore').innerText = `${this.score}%`;
+            if (this.score >= 100) this.win();
+        }
+    },
+    draw() {
+        this.ctx.fillStyle = '#0a0a1a'; this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        for(let i=0; i<this.canvas.height; i+=4) this.ctx.fillRect(0, i, this.canvas.width, 1);
+        
+        this.ctx.strokeStyle = '#00ff88'; this.ctx.lineWidth = 2; this.ctx.shadowBlur = 10; this.ctx.shadowColor = '#00ff88';
+        this.ctx.beginPath(); this.ctx.moveTo(0, this.groundY); this.ctx.lineTo(this.canvas.width, this.groundY); this.ctx.stroke();
+        
+        const offset = -(this.distanceTraveled % 40);
+        this.ctx.beginPath();
+        for(let i=offset; i<this.canvas.width; i+=40) { this.ctx.moveTo(i, this.groundY); this.ctx.lineTo(i - 20, this.groundY + 40); }
+        this.ctx.stroke(); this.ctx.shadowBlur = 0;
+        
+        for (let obs of this.obstacles) {
+            const sx = obs.x - this.distanceTraveled;
+            if (sx > this.canvas.width || sx + obs.w < 0) continue;
+            this.ctx.shadowBlur = 12; this.ctx.shadowColor = '#b026ff'; this.ctx.fillStyle = '#b026ff';
+            
+            if (obs.type === 'spike_up') {
+                this.ctx.beginPath(); this.ctx.moveTo(sx + obs.w/2, obs.y - obs.h); this.ctx.lineTo(sx + obs.w, obs.y); this.ctx.lineTo(sx, obs.y); this.ctx.fill();
+            } else if (obs.type === 'spike_down') {
+                this.ctx.beginPath(); this.ctx.moveTo(sx, obs.y); this.ctx.lineTo(sx + obs.w, obs.y); this.ctx.lineTo(sx + obs.w/2, obs.y + obs.h); this.ctx.fill();
+            } else if (obs.type === 'platform') {
+                this.ctx.fillRect(sx, obs.y, obs.w, obs.h);
+            }
+            this.ctx.shadowBlur = 0;
+        }
+        
+        if (this.ghostMode && this.state === 'playing') {
+            let gy = this.groundY - 30;
+            for (let g of this.ghostData) { if (g.d >= this.distanceTraveled) { gy = g.y; break; } }
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; this.ctx.fillRect(this.player.x, gy, this.player.size, this.player.size);
+        }
+        
+        this.ctx.shadowBlur = 20; this.ctx.shadowColor = '#00f5ff';
+        for (let i=0; i<this.player.trail.length; i++) {
+            const pt = this.player.trail[i]; const alpha = (i+1) / this.player.trail.length * 0.4;
+            this.ctx.fillStyle = `rgba(0, 245, 255, ${alpha})`; this.ctx.fillRect(pt.x, pt.y, this.player.size, this.player.size);
+        }
+        
+        if (this.state !== 'dead') {
+            this.ctx.fillStyle = '#00f5ff'; this.ctx.fillRect(this.player.x, this.player.y, this.player.size, this.player.size);
+        } else {
+            this.ctx.fillStyle = 'rgba(0, 245, 255, 0.5)';
+            this.ctx.fillRect(this.player.x - 10, this.player.y + 10, this.player.size, this.player.size);
+            this.ctx.fillRect(this.player.x + 10, this.player.y - 10, this.player.size, this.player.size);
+        }
+        this.ctx.shadowBlur = 0;
+    },
+    loop(time) {
+        const dt = time - this.lastTime; this.lastTime = time;
+        this.update(dt); this.draw();
+        if (this.state === 'playing' || this.state === 'dead' || this.state === 'victory') {
+            this.loopId = requestAnimationFrame((t) => this.loop(t));
+        }
+    }
+};
+
+window.onload = function() {
+    GameEngine.init();
+    
+    // Background particles for Hero
+    const pContainer = document.getElementById('particles');
+    for(let i=0; i<50; i++) {
+        const p = document.createElement('div');
+        p.style.position = 'absolute'; p.style.background = '#00f5ff'; p.style.borderRadius = '50%';
+        p.style.width = Math.random() * 3 + 'px'; p.style.height = p.style.width;
+        p.style.left = Math.random() * 100 + '%'; p.style.top = Math.random() * 100 + '%';
+        p.style.opacity = Math.random() * 0.5;
+        p.style.animation = `float ${Math.random() * 10 + 5}s linear infinite`;
+        pContainer.appendChild(p);
+    }
+    
+    const style = document.createElement('style');
+    style.innerHTML = `@keyframes float { 0% { transform: translateY(100vh); opacity: 0; } 50% { opacity: 0.5; } 100% { transform: translateY(-100px); opacity: 0; } }`;
+    document.head.appendChild(style);
+};
+</script>
+</body>
+</html>
